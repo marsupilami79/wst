@@ -116,6 +116,8 @@ begin
     nsShortName := '';
   eltName := nsShortName + sENVELOPE;
   envNd := doc.DocumentElement;
+  If Not Assigned(envNd) Then
+    Error('No XML root node found');
   If Not SameText(eltName,envNd.NodeName) Then
     Error('XML root node must be "Envelope", found : "%s"',[envNd.NodeName + ':::' + nsShortName]);
   PushStack(envNd);
