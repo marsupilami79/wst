@@ -131,6 +131,7 @@ end;
 procedure THTTPTransport.DoSendAndReceive(ARequest, AResponse: TStream);
 var
   EMsg : String;
+  Msg: String;
   i : Integer;
 begin
   try
@@ -144,8 +145,11 @@ begin
     On E : Exception do
     EMsg:=E.Message;
   end;
-  if (EMsg<>'') then
-    raise ETransportExecption.CreateFmt(SERR_FailedTransportRequest,[sTRANSPORT_NAME,FAddress]);
+  if (EMsg<>'') then begin
+    Msg := sysutils.Format(SERR_FailedTransportRequest,[sTRANSPORT_NAME,FAddress]);
+    Msg := Msg + ' Error message: ' + EMsg;
+    raise ETransportExecption.Create(Msg);
+  end;
 end;
 
 procedure THTTPTransport.SetSoapAction(const AValue : string);
