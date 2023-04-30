@@ -35,11 +35,27 @@ type
     FRootAddress : string;
     FServerSoftware : String;
     FOnNotifyMessage : TListnerNotifyMessage;
+
+    {$IFDEF FPC_IS_SSLENABLED}
+    FUseSSL: Boolean;
+    FKeyFile: String;
+    FKeyPasswod: String;
+    FCertificateFileName: String;
+    FHostName: String;
+    {$ENDIF}
   private
     function GetHandleRequestInThread : Boolean;
     function GetListeningPort : Integer;
     procedure SetHandleRequestInThread(const AValue : Boolean);
     procedure SetListeningPort(const AValue : Integer);
+
+    {$IFDEF FPC_IS_SSLENABLED}
+    procedure SetUseSSL(const AValue: Boolean);
+    procedure SetKeyFile(const AValue: String);
+    procedure SetKeyPasswod(const AValue: String);
+    procedure SetCertificateFileName(const AValue: String);
+    procedure SetHostName(const AValue: String);
+    {$ENDIF}
 
     procedure ProcessWSDLRequest(
           ARequest  : TRequest;
@@ -71,6 +87,14 @@ type
     property ListeningPort : Integer read GetListeningPort write SetListeningPort;
     property OnNotifyMessage : TListnerNotifyMessage read FOnNotifyMessage write FOnNotifyMessage;
     property HandleRequestInThread : Boolean read GetHandleRequestInThread write SetHandleRequestInThread;
+
+    {$IFDEF FPC_IS_SSLENABLED}
+    property UseSSL: Boolean read FUseSSL write SetUseSSL;
+    property KeyFile: String read FKeyFile write SetKeyFile;
+    property KeyPasswod: String read FKeyPasswod write SetKeyPasswod;
+    property CertificateFileName: String read FCertificateFileName write SetCertificateFileName;
+    property HostName: String read FHostName write SetHostName;
+    {$ENDIF}
   end;
 
   { TServerListnerThread }
@@ -93,6 +117,19 @@ type
     FOptions : TListenerOptions;
     FWorkerObjectRef : IObjectRef;
     FWorkerObject : TFPWorkerObject;
+
+    {$IFDEF FPC_IS_SSLENABLED}
+    procedure SetUseSSL(const AValue: Boolean);
+    procedure SetKeyFile(const AValue: String);
+    procedure SetKeyPasswod(const AValue: String);
+    procedure SetCertificateFileName(const AValue: String);
+    procedure SetHostName(const AValue: String);
+    function GetUseSSL: Boolean;
+    function GetKeyFile: String;
+    function GetKeyPasswod: String;
+    function GetCertificateFileName: String;
+    function GetHostName: String;
+    {$ENDIF}
   protected
     procedure SetOnNotifyMessage(const AValue : TListnerNotifyMessage);override;
   public
@@ -109,6 +146,13 @@ type
     function IsActive : Boolean; override;
 
     property Options : TListenerOptions read FOptions write FOptions;
+    {$IFDEF FPC_IS_SSLENABLED}
+    property UseSSL: Boolean read GetUseSSL write SetUseSSL;
+    property KeyFile: String read GetKeyFile write SetKeyFile;
+    property KeyPasswod: String read GetKeyPasswod write SetKeyPasswod;
+    property CertificateFileName: String read GetCertificateFileName write SetCertificateFileName;
+    property HostName: String read GetHostName write SetHostName;
+    {$ENDIF}
   end;
 
 implementation
@@ -292,6 +336,43 @@ begin
   FHTTPServerObject.Port := AValue;
 end;
 
+{$IFDEF FPC_IS_SSLENABLED}
+procedure TFPWorkerObject.SetUseSSL(const AValue: Boolean);
+begin
+  if FHTTPServerObject.Active then
+    raise Exception.CreateFmt(SERR_ObjectStateDoesNotAllowOperation,['SetUseSSL']);
+  FHTTPServerObject.UseSSL := AValue;
+end;
+
+procedure TFPWorkerObject.SetKeyFile(const AValue: String);
+begin
+  if FHTTPServerObject.Active then
+    raise Exception.CreateFmt(SERR_ObjectStateDoesNotAllowOperation,['SetKeyFile']);
+  FHTTPServerObject.CertificateData.PrivateKey.FileName := AValue;
+end;
+
+procedure TFPWorkerObject.SetKeyPasswod(const AValue: String);
+begin
+  if FHTTPServerObject.Active then
+    raise Exception.CreateFmt(SERR_ObjectStateDoesNotAllowOperation,['SetKeyPasswod']);
+  FHTTPServerObject.CertificateData.KeyPassword := AValue;
+end;
+
+procedure TFPWorkerObject.SetCertificateFileName(const AValue: String);
+begin
+  if FHTTPServerObject.Active then
+    raise Exception.CreateFmt(SERR_ObjectStateDoesNotAllowOperation,['SetCertificateFileName']);
+  FHTTPServerObject.CertificateData.Certificate.FileName := AValue;
+end;
+
+procedure TFPWorkerObject.SetHostName(const AValue: String);
+begin
+  if FHTTPServerObject.Active then
+    raise Exception.CreateFmt(SERR_ObjectStateDoesNotAllowOperation,['SetHostName']);
+  FHTTPServerObject.CertificateData.HostName := AValue;
+end;
+{$ENDIF}
+
 constructor TFPWorkerObject.Create();
 begin
   inherited Create();
@@ -325,6 +406,58 @@ begin
 end;
 
 { TwstFPHttpListener }
+
+{$IFDEF FPC_IS_SSLENABLED}
+procedure TwstFPHttpListener.SetUseSSL(const AValue: Boolean);
+begin
+  FWorkerObject.UseSSL := AValue;
+end;
+
+procedure TwstFPHttpListener.SetKeyFile(const AValue: String);
+begin
+  FWorkerObject.KeyFile := AValue;
+end;
+
+procedure TwstFPHttpListener.SetKeyPasswod(const AValue: String);
+begin
+  FWorkerObject.KeyPasswod := AValue;
+end;
+
+procedure TwstFPHttpListener.SetCertificateFileName(const AValue: String);
+begin
+  FWorkerObject.CertificateFileName := AValue;
+end;
+
+procedure TwstFPHttpListener.SetHostName(const AValue: String);
+begin
+  FWorkerObject.HostName := AValue;
+end;
+
+function TwstFPHttpListener.GetUseSSL: Boolean;
+begin
+  Result := FWorkerObject.UseSSL;
+end;
+
+function TwstFPHttpListener.GetKeyFile: String;
+begin
+  Result := FWorkerObject.KeyFile;
+end;
+
+function TwstFPHttpListener.GetKeyPasswod: String;
+begin
+  Result := FWorkerObject.KeyPasswod;
+end;
+
+function TwstFPHttpListener.GetCertificateFileName: String;
+begin
+  Result := FWorkerObject.CertificateFileName;
+end;
+
+function TwstFPHttpListener.GetHostName: String;
+begin
+  Result := FWorkerObject.HostName;
+end;
+{$ENDIF}
 
 procedure TwstFPHttpListener.SetOnNotifyMessage(const AValue : TListnerNotifyMessage);
 begin
