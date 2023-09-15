@@ -10,7 +10,7 @@
 
 {$WARNINGS OFF}
 
-  {$IFDEF FPC}
+  {$IFDEF FPC}(*
     {$mode objfpc}{$H+}
     {$DEFINE HAS_QWORD}
     {$DEFINE HAS_BUILT_IN_64UINT}
@@ -18,25 +18,25 @@
     {$UNDEF WST_INTF_DOM}
     {$DEFINE WST_RECORD_RTTI}
     //{$DEFINE USE_INLINE}
-    {$IF Defined(FPC_VERSION) and 
+    {$IF Defined(FPC_VERSION) and
          ( (FPC_VERSION > 2) or
-           ( (FPC_VERSION = 2) and 
+           ( (FPC_VERSION = 2) and
              (FPC_RELEASE > 4)
            )
          )
     }
       { $DEFINE HAS_JSON_CLONE}
     {$IFEND}
-    {$IF Defined(FPC_VERSION) and 
+    {$IF Defined(FPC_VERSION) and
          ( (FPC_VERSION > 2) or
-           ( (FPC_VERSION = 2) and 
+           ( (FPC_VERSION = 2) and
              (FPC_RELEASE > 4)
            )
          )
-    }              
+    }
       {$DEFINE WST_HAS_JSON_INT64}
       {$DEFINE WST_TKHELPER}
-    {$IFEND}   
+    {$IFEND}
 
     {$DEFINE WST_TKPROCVAR}
     {$DEFINE WST_UNICODESTRING}
@@ -55,9 +55,9 @@
       {$DEFINE WST_TKFILE}
       {$DEFINE WST_TKCLASSREF}
       {$DEFINE WST_TKPOINTER}
-    {$IFEND}     
+    {$IFEND}
     {$IF Defined(FPC_FULLVERSION) and (FPC_FULLVERSION >= 30003) }
-      {$DEFINE WST_TPASSOURCEPOS}  
+      {$DEFINE WST_TPASSOURCEPOS}
       {$DEFINE WST_TCLASS_MEMBERS}
     {$IFEND}
     {$IF Defined(FPC_FULLVERSION) and (FPC_FULLVERSION >= 30200) }
@@ -65,7 +65,7 @@
       {$IF FPC_FULLVERSION >= 30202}
         {$DEFINE FPC_CAN_CREATE_CERTIFICATE}
       {$IFEND}
-    {$IFEND}
+    {$IFEND}*)
   {$ENDIF}
 
   {$IFNDEF FPC}
@@ -82,7 +82,7 @@
       {$UNDEF WST_HAS_STRICT_DELIMITER}
     {$ENDIF}
     {$IFDEF VER150} //Delphi 7
-      {$UNDEF HAS_FORMAT_SETTINGS}   
+      {$UNDEF HAS_FORMAT_SETTINGS}
       {$UNDEF WST_HAS_STRICT_DELIMITER}
     {$ENDIF}
     {$IFDEF VER170} //Delphi 2005
@@ -189,6 +189,31 @@
       {$DEFINE WST_TKCLASSREF}
       {$DEFINE WST_TKPOINTER}
       {$DEFINE WST_TKPROCEDURE}
+    {$ENDIF}
+    {$IFDEF VER330} // Delphi Tokyo
+      {$DEFINE HAS_BUILT_IN_64UINT}
+      {$DEFINE WST_UNICODESTRING}
+      {$DEFINE USE_INLINE}
+      {$DEFINE WST_TKCLASSREF}
+      {$DEFINE WST_TKPOINTER}
+      {$DEFINE WST_TKPROCEDURE}
+    {$ENDIF}
+    {$IFDEF VER340} // Delphi Tokyo
+      {$DEFINE HAS_BUILT_IN_64UINT}
+      {$DEFINE WST_UNICODESTRING}
+      {$DEFINE USE_INLINE}
+      {$DEFINE WST_TKCLASSREF}
+      {$DEFINE WST_TKPOINTER}
+      {$DEFINE WST_TKPROCEDURE}
+    {$ENDIF}
+    {$IFDEF VER350} // Delphi Alexandria
+      {$DEFINE HAS_BUILT_IN_64UINT}
+      {$DEFINE WST_UNICODESTRING}
+      {$DEFINE USE_INLINE}
+      {$DEFINE WST_TKCLASSREF}
+      {$DEFINE WST_TKPOINTER}
+      {$DEFINE WST_TKPROCEDURE}
+      {$DEFINE WST_TKMRECORD}
     {$ENDIF}
     {$DEFINE WST_SEMAPHORE_TIMEOUT}
     {$IFDEF MSWINDOWS}
