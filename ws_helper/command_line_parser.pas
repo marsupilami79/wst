@@ -22,6 +22,7 @@ Type
 
   TComandLineOption = (
     cloInterface, cloProxy, cloImp, cloBinder, cloWsdl, cloXsd, cloJava,
+    cloTypeScript,
     cloOutPutDirRelative, cloOutPutDirAbsolute, cloHandleWrappedParameters,
     cloGenerateDocAsComments, cloGenerateObjectCollection,
     cloFileRenaming, cloPrefixEnum, cloParserCaseSensitive,
@@ -50,7 +51,7 @@ begin
   AAppOptions := [];
   c := #0;
   repeat
-    c := GetOpt('u:pibo:a:wxydg:f:c:j');
+    c := GetOpt('u:pibo:a:wxydg:f:c:jt');
     case c of
       'u' :
         begin
@@ -100,7 +101,8 @@ begin
           Include(AAppOptions,cloParserCaseSensitive);
           OptionsArgsMAP[cloParserCaseSensitive] := OptArg;
         end;
-      'j' : Include(AAppOptions,cloJava);
+      'j' : Include(AAppOptions,cloJava);   
+      't' : Include(AAppOptions,cloTypeScript);
     end;
   until ( c = EndOfOptions );
   Result := OptInd;

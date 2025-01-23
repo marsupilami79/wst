@@ -35,24 +35,46 @@ resourcestring
            '  -c  Indicate the parser''s case sensitivity : ' + sNEW_LINE +
            '        S  : the paser is case sensitive' + sNEW_LINE +
            '        I  : the paser is not case sensitive' + sNEW_LINE +
-           '  -j  Generate Java Language interface files for' + sNEW_LINE +
+           '  -j  Generate Java Language interface files for' + sNEW_LINE +  
+           '  -t  Generate TypeScript Language interface files ' + sNEW_LINE +
            '  -f  Specify unit(s) renaming option : oldName= NewName(;oldName= NewName)* ';
   sCOPYRIGHT = 'ws_helper, Web Service Toolkit 0.7 Copyright (c) 2006-2017 by Inoussa OUEDRAOGO';
 
 
 type
   TSourceFileType = ( sftPascal, sftWSDL, sftXsd );
+  TExportLanguage = (exlgPascal, exlgWSDL, exlgXSD, exlgJava, exlgTypeScript);
+  TExportLanguages = set of TExportLanguage;
   
 var
   inFileName,outPath,errStr : string;
-  srcMngr : ISourceManager;
   AppOptions : TComandLineOptions;
+  exportLanguages : TExportLanguages;
   NextParam : Integer;
   sourceType : TSourceFileType;
-  symtable : TwstPasTreeContainer;
   parserMode : TParserMode;
   
   osParam, targetParam : string;
+
+  function DetermineExportedLanguages(AAppOptions : TComandLineOptions) : TExportLanguages;
+  var
+    r : TExportLanguages;
+  begin
+    r := [];
+    if ([cloInterface, cloProxy, cloImp, cloBinder]*AAppOptions <> []) then
+      r := r + [exlgPascal];    
+    if (cloWsdl in AAppOptions) then
+      r := r + [exlgWSDL];
+    if (cloXsd in AAppOptions) then
+      r := r + [exlgXSD];
+    if (cloJava in AAppOptions) then
+      r := r + [exlgJava];
+    if (cloTypeScript in AAppOptions) then
+      r := r + [exlgTypeScript];
+    if (r = []) then      
+      r := r + [exlgPascal];
+    Result := r;
+  end;
 
   function ProcessCmdLine():boolean;
   begin
@@ -110,15 +132,52 @@ var
       if AnsiSameText('FN',Trim(GetOptionArg(cloCreateChoiceFields))) then
         Exclude(AppOptions,cloCreateChoiceFields);
     end;
+    exportLanguages := DetermineExportedLanguages(AppOptions);
+  end;     
+
+  procedure Error(const AMsg : string);
+  begin
+    raise Exception.Create(AMsg);
   end;
 
-  function GenerateSymbolTable() : Boolean ;
+  function CreateSymboleTable(const ALangage : TExportLanguage) : TwstPasTreeContainer;
+  var
+    tmpString : string;
+  begin
+    Result := TwstPasTreeContainer.Create();
+    try
+      Result.CaseSensitive :=
+        (ALangage in [exlgJava,exlgTypeScript]) or
+        (cloParserCaseSensitive in AppOptions);
+      if (ALangage = exlgJava) then
+        JavaCreateWstInterfaceSymbolTable(Result)
+      else if (ALangage = exlgTypeScript) then
+        TypeScriptCreateWstInterfaceSymbolTable(Result)
+      else if(ALangage = exlgPascal) then begin
+        if (cloStringMaping in AppOptions) then begin
+          tmpString := Trim(GetOptionArg(cloStringMaping));
+          tmpString := UpperCase(Copy(tmpString,2,Length(tmpString)));
+          if (tmpString = 'S') then
+            Result.XsdStringMaping := xsmString
+          else if (tmpString = 'U') then
+            Result.XsdStringMaping := xsmUnicodeString
+          else
+            Error('Invalid argument for "-gS" option: "' + tmpString + '".');
+        end;
+      end;
+    except
+      Result.Free();
+      raise;
+    end;
+  end;
+
+  function GenerateSymbolTable(ASymtable : TwstPasTreeContainer) : Boolean ;
 
     procedure ParsePascalFile();
     begin
-      ParseSource(symtable,inFileName,osParam,targetParam);
-      if ( symtable <> nil ) then
-        CreateDefaultBindingForIntf(symtable);
+      ParseSource(ASymtable,inFileName,osParam,targetParam);
+      if ( ASymtable <> nil ) then
+        CreateDefaultBindingForIntf(ASymtable);
     end;
 
     function GetParserSimpleOptions( ) : TParserOptions;
@@ -140,7 +199,7 @@ var
 {$IFNDEF WST_INTF_DOM}
       try
 {$ENDIF}
-        prsrW := TWsdlParser.Create(locDoc,symtable);// as IParser;
+        prsrW := TWsdlParser.Create(locDoc,ASymtable);// as IParser;
         prsrCtx := prsrW as IParserContext;
         prsrCtx.SetDocumentLocator(TFileDocumentLocator.Create(ExtractFilePath(ExpandFileName(inFileName))));
         prsrCtx.SetSimpleOptions(GetParserSimpleOptions());
@@ -164,7 +223,7 @@ var
 {$IFNDEF WST_INTF_DOM}
       try
 {$ENDIF}
-        prsr := TXsdParser.Create(locDoc,symtable,ChangeFileExt(ExtractFileName(inFileName),'')) as IXsdPaser;
+        prsr := TXsdParser.Create(locDoc,ASymtable,ChangeFileExt(ExtractFileName(inFileName),'')) as IXsdPaser;
         prsrCtx := prsr as IParserContext;
         prsrCtx.SetDocumentLocator(TFileDocumentLocator.Create(ExtractFilePath(ExpandFileName(inFileName))));
         prsrCtx.SetSimpleOptions(GetParserSimpleOptions());
@@ -179,7 +238,7 @@ var
   begin
     try
       WriteLn('Parsing the file : ', inFileName);
-      if symtable.CaseSensitive then
+      if ASymtable.CaseSensitive then
         WriteLn('The parser is case sensitive');
       case sourceType of
         sftPascal : ParsePascalFile();
@@ -225,7 +284,7 @@ var
     end;
   end;
   
-  procedure HandleUnitRenaming();
+  procedure HandleUnitRenaming(ASymtable : TwstPasTreeContainer);
   var
     namesSpecif, strBuffer, oldName, newName : string;
     k : Integer;
@@ -236,7 +295,7 @@ var
     namesSpecif := Trim(GetOptionArg(cloFileRenaming));             
     Write('Handling unit renaming ... ');
     WriteLn(namesSpecif);
-    mdlList := symtable.Package.Modules;   
+    mdlList := ASymtable.Package.Modules;   
     strBuffer := namesSpecif;
     while True do begin
       oldName := GetToken(strBuffer,'=');
@@ -271,8 +330,9 @@ var
     end;
   end;
   
-  function ProcessFile():Boolean;
-  Var
+  function GenerateForLangage(ASymtable : TwstPasTreeContainer; const ALanguage : TExportLanguage) : Boolean;
+  Var      
+    srcMngr : ISourceManager;
     mtdaFS: TMemoryStream;
     g : TBaseGenerator;
     mg : TMetadataGenerator;
@@ -280,8 +340,9 @@ var
     strStream : TStringStream;
     wrappedParams : Boolean;
   begin
-    Result := False;
-    HandleUnitRenaming();    
+    Result := False;  
+    srcMngr := CreateSourceManager();
+    HandleUnitRenaming(ASymtable);    
     wrappedParams := ( cloHandleWrappedParameters in AppOptions );
     strStream := nil;
     rsrcStrm := nil;
@@ -290,84 +351,105 @@ var
     g := Nil;
     try
       try
-        if ( cloInterface in AppOptions ) then begin
-          WriteLn('Interface file generation...');
-          g := TInftGenerator.Create(symtable,srcMngr);
-          if wrappedParams then
-            g.Options := g.Options + [goDocumentWrappedParameter];
-          if ( cloGenerateObjectCollection in AppOptions ) then
-            g.Options := g.Options + [goGenerateObjectCollection];
-          if ( cloCreateChoiceFields in AppOptions ) then
-            g.Options := g.Options + [goCreateChoiceFieldsInConstructor];
-          g.Execute();
-          FreeAndNil(g);
+        if (ALanguage = exlgPascal) then begin
+          if ( cloInterface in AppOptions ) then begin
+            WriteLn('Interface file generation...');
+            g := generator.TInftGenerator.Create(ASymtable,srcMngr);
+            if wrappedParams then
+              g.Options := g.Options + [goDocumentWrappedParameter];
+            if ( cloGenerateObjectCollection in AppOptions ) then
+              g.Options := g.Options + [goGenerateObjectCollection];
+            if ( cloCreateChoiceFields in AppOptions ) then
+              g.Options := g.Options + [goCreateChoiceFieldsInConstructor];
+            g.Execute();
+            FreeAndNil(g);
+          end;
+
+          If ( cloProxy in AppOptions ) Then Begin
+            WriteLn('Proxy file generation...');
+            g := generator.TProxyGenerator.Create(ASymtable,srcMngr);
+            if wrappedParams then
+              g.Options := g.Options + [goDocumentWrappedParameter];
+            g.Execute();
+            FreeAndNil(g);
+          End;
+
+          If ( cloBinder in AppOptions ) Then Begin
+            WriteLn('Binder file generation...');
+            g := generator.TBinderGenerator.Create(ASymtable,srcMngr);
+            if wrappedParams then
+              g.Options := g.Options + [goDocumentWrappedParameter];
+            g.Execute();
+            FreeAndNil(g);
+          End;
+
+          If ( cloImp in AppOptions ) Then Begin
+            WriteLn('Implementation file generation...');
+            g := generator.TImplementationGenerator.Create(ASymtable,srcMngr);
+            if wrappedParams then
+              g.Options := g.Options + [goDocumentWrappedParameter];
+            g.Execute();
+            FreeAndNil(g);
+          End;
+
+          if ( [cloBinder,cloProxy]*AppOptions  <> [] ) then begin
+            WriteLn('Metadata file generation...');
+            mtdaFS := TMemoryStream.Create();
+            mg := TMetadataGenerator.Create(ASymtable,CreateBinaryWriter(mtdaFS));
+            mg.Execute();
+            //mtdaFS.SaveToFile(ChangeFileExt(inFileName,'.' + sWST_META));
+            rsrcStrm := TMemoryStream.Create();
+            mtdaFS.Position := 0;
+            BinToWstRessource(UpperCase(ASymtable.CurrentModule.Name),mtdaFS,rsrcStrm);
+            rsrcStrm.SaveToFile(outPath + ChangeFileExt(ExtractFileName(ASymtable.CurrentModule.Name),'.' + sWST_EXTENSION));
+          end;
         end;
 
-        If ( cloProxy in AppOptions ) Then Begin
-          WriteLn('Proxy file generation...');
-          g := TProxyGenerator.Create(symtable,srcMngr);
-          if wrappedParams then
-            g.Options := g.Options + [goDocumentWrappedParameter];
-          g.Execute();
-          FreeAndNil(g);
-        End;
-
-        If ( cloBinder in AppOptions ) Then Begin
-          WriteLn('Binder file generation...');
-          g := TBinderGenerator.Create(symtable,srcMngr);
-          if wrappedParams then
-            g.Options := g.Options + [goDocumentWrappedParameter];
-          g.Execute();
-          FreeAndNil(g);
-        End;
-
-        If ( cloImp in AppOptions ) Then Begin
-          WriteLn('Implementation file generation...');
-          g := TImplementationGenerator.Create(symtable,srcMngr);
-          if wrappedParams then
-            g.Options := g.Options + [goDocumentWrappedParameter];
-          g.Execute();
-          FreeAndNil(g);
-        End;
-
-        if ( [cloBinder,cloProxy]*AppOptions  <> [] ) then begin
-          WriteLn('Metadata file generation...');
-          mtdaFS := TMemoryStream.Create();
-          mg := TMetadataGenerator.Create(symtable,CreateBinaryWriter(mtdaFS));
-          mg.Execute();
-          //mtdaFS.SaveToFile(ChangeFileExt(inFileName,'.' + sWST_META));
-          rsrcStrm := TMemoryStream.Create();
-          mtdaFS.Position := 0;
-          BinToWstRessource(UpperCase(symtable.CurrentModule.Name),mtdaFS,rsrcStrm);
-          rsrcStrm.SaveToFile(outPath + ChangeFileExt(ExtractFileName(symtable.CurrentModule.Name),'.' + sWST_EXTENSION));
-        end;
-        
-        if ( cloWsdl in AppOptions ) then begin
+        if (ALanguage = exlgWSDL) then begin
           strStream := TStringStream.Create('');
-          GenerateWSDLFromTree(symtable,strStream);
+          GenerateWSDLFromTree(ASymtable,strStream);
           if not IsStrEmpty(strStream.DataString) then begin
             strStream.Position := 0;
             srcMngr.CreateItem(ChangeFileExt(ExtractFileName(inFileName),'.wsdl')).Write(strStream.DataString);
           end;
         end;
 
-        if ( cloXsd in AppOptions ) then begin
+        if (ALanguage = exlgXSD) then begin
           strStream := TStringStream.Create('');
-          GenerateXsdFromTree(symtable,strStream);
+          GenerateXsdFromTree(ASymtable,strStream);
           if not IsStrEmpty(strStream.DataString) then begin
             strStream.Position := 0;
             srcMngr.CreateItem(ChangeFileExt(ExtractFileName(inFileName),'.xsd')).Write(strStream.DataString);
           end;
         end;
 
-        If ( cloJava in AppOptions ) Then Begin
+        if (ALanguage = exlgJava) then begin
           WriteLn('Java file generation...');
-          g := generatorj.TInftGenerator.Create(symtable,srcMngr);
+          g := generatorj.TInftGenerator.Create(ASymtable,srcMngr);
           //if wrappedParams then
             //g.Options := g.Options + [goDocumentWrappedParameter];
           g.Execute();
           FreeAndNil(g);
-        End;
+        end;
+
+        if (ALanguage = exlgTypeScript) then begin
+          WriteLn('TypeScript file generation...');
+          g := generatorts.TInftGenerator.Create(ASymtable,srcMngr);
+          if (cloProxy in AppOptions) then begin
+            generatorts.TInftGenerator(g).OptionsEx :=
+              generatorts.TInftGenerator(g).OptionsEx +
+              [TTypeScriptOption.GenerateProxy];
+          end;
+          g.Execute();
+          FreeAndNil(g);
+        end;
+
+        srcMngr.SaveToFile(outPath);
+        if ( GetLogger().GetMessageCount(mtError) = 0 ) then begin
+          WriteLn(Format('File "%s" parsed succesfully.',[inFileName]));
+        end else begin
+          WriteLn(Format('Parsing complete with %d error(s).',[GetLogger().GetMessageCount(mtError)]));
+        end;
 
         Result := True;
       except
@@ -385,13 +467,10 @@ var
     end;
   end;
 
-  procedure Error(const AMsg : string);
-  begin
-    raise Exception.Create(AMsg);
-  end;
-
 var
-  tmpString : string;
+  symtable : TwstPasTreeContainer;
+  exportlanguage : TExportLanguage;      
+  parserModeKeep : TParserMode;
 begin
 {$IFDEF FPC}
   {$IF Declared(SetHeapTraceOutput) }
@@ -402,8 +481,6 @@ begin
   targetParam := 'x86';
   
   SetLogger(TSimpleConsoleLogger.Create());
-  
-  symtable := nil;
   try
     try
       Writeln(sCOPYRIGHT);
@@ -414,39 +491,26 @@ begin
 
       if not ProcessCmdLine() then begin
         Error(errStr);
-      end;
-      symtable := TwstPasTreeContainer.Create();
-      symtable.CaseSensitive := (([cloParserCaseSensitive,cloJava]*AppOptions) <>[]);
-      if (cloJava in AppOptions) then
-        JavaCreateWstInterfaceSymbolTable(symtable);
-      if (cloStringMaping in AppOptions) then begin
-        tmpString := Trim(GetOptionArg(cloStringMaping));
-        tmpString := UpperCase(Copy(tmpString,2,Length(tmpString)));
-        if (tmpString = 'S') then
-          symtable.XsdStringMaping := xsmString
-        else if (tmpString = 'U') then
-          symtable.XsdStringMaping := xsmUnicodeString
-        else
-          Error('Invalid argument for "-gS" option: "' + tmpString + '".');
-      end;
-      srcMngr := CreateSourceManager();
+      end;           
 
-      if not GenerateSymbolTable() then begin
-        Error(errStr);
+      for exportlanguage := Low(TExportLanguage) to High(TExportLanguage) do begin
+        if (exportlanguage in exportLanguages) then begin
+          parserModeKeep := parserMode;
+          symtable := CreateSymboleTable(exportlanguage);
+          try
+            parserMode := pmAllTypes;
+            if not GenerateSymbolTable(symtable) then
+              Error(errStr);
+            if not GenerateForLangage(symtable,exportlanguage) then
+              Error(errStr);
+          finally
+            FreeAndNil(symtable);
+            parserMode := parserModeKeep;
+          end;
+        end;
       end;
 
-      If Not ProcessFile() Then Begin
-        Error(errStr);
-      End;
-
-      srcMngr.SaveToFile(outPath);
-      if ( GetLogger().GetMessageCount(mtError) = 0 ) then begin
-        WriteLn(Format('File "%s" parsed succesfully.',[inFileName]));
-      end else begin
-        WriteLn(Format('Paring complete with %d error(s).',[GetLogger().GetMessageCount(mtError)]));
-      end;
     finally
-      FreeAndNil(symtable);
       SetLogger(nil);
     end;
   except
