@@ -56,11 +56,15 @@ Type
   private  
     function GetAddress: string;
     function GetContentType: string;
+    function GetPassword: string;
     function GetSoapAction : string;
+    function GetUserName: string;
     procedure SetAddress(const AValue: string);
     procedure SetContentType(const AValue: string);
     procedure DoSendAndReceive(ARequest,AResponse:TStream); override;
+    procedure SetPassword(AValue: string);
     procedure SetSoapAction(const AValue : string);
+    procedure SetUserName(AValue: string);
   Public
     constructor Create();override;
     destructor Destroy();override;      
@@ -71,6 +75,8 @@ Type
     property Address : string Read GetAddress Write SetAddress;
     property SoapAction : string read GetSoapAction write SetSoapAction;
     property Format : string read FFormat write FFormat;
+    property UserName : string read GetUserName write SetUserName; 
+    property Password : string read GetPassword write SetPassword;
   End;
 {$M+}
 
@@ -95,9 +101,19 @@ begin
   Result := FConnection.GetHeader('Content-type');
 end;
 
+function THTTPTransport.GetPassword: string;
+begin
+  Result := FConnection.Password;
+end;
+
 function THTTPTransport.GetSoapAction : string;
 begin
   Result := FConnection.GetHeader(s_soapAction_Header);
+end;
+
+function THTTPTransport.GetUserName: string;
+begin
+  Result := FConnection.UserName;
 end;
 
 procedure THTTPTransport.SetAddress(const AValue: string);
@@ -148,9 +164,19 @@ begin
     raise ETransportExecption.CreateFmt(SERR_FailedTransportRequest,[sTRANSPORT_NAME,FAddress]);
 end;
 
+procedure THTTPTransport.SetPassword(AValue: string);
+begin
+  FConnection.Password:=AValue;
+end;
+
 procedure THTTPTransport.SetSoapAction(const AValue : string);
 begin
   FConnection.AddHeader(s_soapAction_Header,AValue);
+end;
+
+procedure THTTPTransport.SetUserName(AValue: string);
+begin
+  FConnection.UserName:=AValue;
 end;
 
 function THTTPTransport.GetCookieManager() : ICookieManager; 
