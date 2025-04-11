@@ -1893,7 +1893,7 @@ begin
       raise EXsdParserException.CreateFmt(SERR_ExpectedTypeDefinition,[FTypeName]);
     locContinue := locSym.InheritsFrom(TPasUnresolvedTypeRef) or
                    ( IsEmbeddedType(TPasType(locSym)) <> FEmbededDef );
-    if not locContinue then;
+    if not locContinue then
       Result := locSym as TPasType;
   end;
   if locContinue then begin
