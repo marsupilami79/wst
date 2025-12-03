@@ -40,6 +40,8 @@ const
 
   CASE_SENSITIVE_DEFAULT = True;
 
+  sBASE_SERVICE_INTF = 'base_service_intf';
+
 {$IF not Declared(TInterfaceSection) }
 type             
   TInterfaceSection = TPasSection;
@@ -262,7 +264,8 @@ type
   function MakeInternalSymbolNameFrom(const AName : string) : string ;
 
   function CreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;
-  function JavaCreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;
+  function JavaCreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;  
+  function TypeScriptCreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;
   procedure CreateDefaultBindingForIntf(ATree : TwstPasTreeContainer);
   
 implementation
@@ -319,6 +322,13 @@ const
           //('java.time.OffsetTime', '', 'time') ,
           //('java.time.Duration', '', 'duration') ,
           ('java.math.BigDecimal', '', 'decimal')
+        );   
+// TYPESCRIPT
+    TYPESCRIPT_SIMPLE_TYPES_COUNT = 3;
+      TYPESCRIPT_SIMPLE_TYPES : Array[0..Pred(TYPESCRIPT_SIMPLE_TYPES_COUNT)] Of array[0..2] of string = (
+          ('number', 'Number', ''),
+          ('boolean', 'Boolean', ''),
+          ('String', '', 'string')
         );
 
 
@@ -368,6 +378,57 @@ begin
       AContainer.RegisterExternalAlias(splTyp,JAVA_SIMPLE_TYPES[i][2]);
       if ( splTyp.ExtendableType <> nil ) then begin
         AContainer.RegisterExternalAlias(splTyp.ExtendableType,JAVA_SIMPLE_TYPES[i][2]);
+      end;
+    end;
+  end;
+end;
+
+procedure TypeScriptRegisterSimpleTypes(
+  ADest      : TPasModule;
+  AContainer : TwstPasTreeContainer
+);
+var
+  i : Integer;
+  splTyp : TPasNativeSimpleType;
+  syb : TPasNativeSimpleContentClassType;
+  s : string;
+  typlst : array[0..Pred(TYPESCRIPT_SIMPLE_TYPES_COUNT)] of TPasNativeSimpleType;
+begin
+  for i := Low(TYPESCRIPT_SIMPLE_TYPES) to High(TYPESCRIPT_SIMPLE_TYPES) do begin
+    splTyp := TPasNativeSimpleType(
+                AContainer.CreateElement(
+                  TPasNativeSimpleType,TYPESCRIPT_SIMPLE_TYPES[i][0],
+                  ADest.InterfaceSection,visPublic,'',0
+                )
+              );
+    ADest.InterfaceSection.Declarations.Add(splTyp);
+    ADest.InterfaceSection.Types.Add(splTyp);
+    typlst[i] := splTyp;
+  end;
+  for i := Low(TYPESCRIPT_SIMPLE_TYPES) to High(TYPESCRIPT_SIMPLE_TYPES) do begin
+    s := TYPESCRIPT_SIMPLE_TYPES[i][1];
+    if not IsStrEmpty(s) then begin
+      syb := AContainer.FindElementInModule(TYPESCRIPT_SIMPLE_TYPES[i][1],ADest)
+               as TPasNativeSimpleContentClassType;
+      if not Assigned(syb) then begin
+        syb := TPasNativeSimpleContentClassType(
+                 AContainer.CreateElement(
+                   TPasNativeSimpleContentClassType,s,
+                   ADest.InterfaceSection,visDefault,'',0
+                 )
+               );
+        ADest.InterfaceSection.Declarations.Add(syb);
+        ADest.InterfaceSection.Types.Add(syb);
+      end;
+      typlst[i].SetExtendableType(syb);
+    end;
+  end;
+  for i := Low(TYPESCRIPT_SIMPLE_TYPES) to High(TYPESCRIPT_SIMPLE_TYPES) do begin
+    splTyp := typlst[i];
+    if not IsStrEmpty(TYPESCRIPT_SIMPLE_TYPES[i][2]) then begin
+      AContainer.RegisterExternalAlias(splTyp,TYPESCRIPT_SIMPLE_TYPES[i][2]);
+      if ( splTyp.ExtendableType <> nil ) then begin
+        AContainer.RegisterExternalAlias(splTyp.ExtendableType,TYPESCRIPT_SIMPLE_TYPES[i][2]);
       end;
     end;
   end;
@@ -562,7 +623,7 @@ begin
   locOldNameKinds := AContainer.DefaultSearchNameKinds;
   AContainer.DefaultSearchNameKinds := [elkDeclaredName,elkName];
   try
-    Result := TPasNativeModule(AContainer.CreateElement(TPasNativeModule,'base_service_intf',AContainer.Package,visPublic,'',0));
+    Result := TPasNativeModule(AContainer.CreateElement(TPasNativeModule,sBASE_SERVICE_INTF,AContainer.Package,visPublic,'',0));
     try
       AContainer.Package.Modules.Add(Result);
       AContainer.RegisterExternalAlias(Result,sXSD_NS);
@@ -593,6 +654,58 @@ begin
   finally
     AContainer.DefaultSearchNameKinds := locOldNameKinds;
   end;
+end; 
+
+function TypeScriptCreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;
+var
+  locOldNameKinds : TElementNameKinds;
+begin
+  Result := AContainer.FindModule(sBASE_SERVICE_INTF);
+  if (Result <> nil) then
+    exit;
+  locOldNameKinds := AContainer.DefaultSearchNameKinds;
+  AContainer.DefaultSearchNameKinds := [elkDeclaredName,elkName];
+  try
+    Result := TPasNativeModule(AContainer.CreateElement(TPasNativeModule,sBASE_SERVICE_INTF,AContainer.Package,visPublic,'',0));
+    try
+      AContainer.Package.Modules.Add(Result);
+      AContainer.RegisterExternalAlias(Result,sXSD_NS);
+      Result.InterfaceSection := TInterfaceSection(AContainer.CreateElement(TInterfaceSection,'',Result,visDefault,'',0));
+      TypeScriptRegisterSimpleTypes(Result,AContainer);
+      AddClassDef(AContainer,Result,'Object','',TPasNativeClassType);  
+      AddClassDef(AContainer,Result,'Date','',TPasNativeClassType);
+      AddAlias(AContainer,'TBaseComplexRemotable','Object',Result);
+      AddAlias(AContainer,'UnicodeString','string',Result);
+      AddAlias(AContainer,'token','string',Result);
+      AddAlias(AContainer,'language','string',Result);
+      AddAlias(AContainer,'anyURI','string',Result);
+      AddAlias(AContainer,'ID','string',Result);
+      AddAlias(AContainer,'base64Binary','string',Result);
+      AddAlias(AContainer,'hexBinary','string',Result);    
+      AddAlias(AContainer,'byte','number',Result); 
+      AddAlias(AContainer,'decimal','number',Result);  
+      AddAlias(AContainer,'int','number',Result);
+      AddAlias(AContainer,'integer','number',Result); 
+      AddAlias(AContainer,'long','number',Result);
+      AddAlias(AContainer,'negativeInteger','number',Result);
+      AddAlias(AContainer,'nonNegativeInteger','number',Result);
+      AddAlias(AContainer,'positiveInteger','number',Result);    
+      AddAlias(AContainer,'nonPositiveInteger','number',Result);  
+      AddAlias(AContainer,'short','number',Result);
+      AddAlias(AContainer,'unsignedInt','number',Result);
+      AddAlias(AContainer,'unsignedByte','number',Result);
+      AddAlias(AContainer,'unsignedShort','number',Result);
+      AddAlias(AContainer,'unsignedLong','number',Result);
+      AddAlias(AContainer,'Currency','number',Result);
+      AddAlias(AContainer,'date','string',Result);
+      AddAlias(AContainer,'dateTime','string',Result);
+    except
+      FreeAndNil(Result);
+      raise;
+    end;
+  finally
+    AContainer.DefaultSearchNameKinds := locOldNameKinds;
+  end;
 end;
 
 function CreateWstInterfaceSymbolTable(AContainer : TwstPasTreeContainer) : TPasModule;
@@ -600,6 +713,9 @@ var
   loc_TBaseComplexSimpleContentRemotable : TPasClassType;
   locOldNameKinds : TElementNameKinds;
 begin
+  Result := AContainer.FindModule(sBASE_SERVICE_INTF);
+  if (Result <> nil) then
+    exit;
   locOldNameKinds := AContainer.DefaultSearchNameKinds;
   AContainer.DefaultSearchNameKinds := [elkDeclaredName,elkName];
   try

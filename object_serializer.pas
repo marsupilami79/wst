@@ -1288,7 +1288,7 @@ var
 {$ENDIF WST_TKPROCEDURE}
 {$IFDEF WST_TKMRECORD}
      ,( Simple : ErrorFunc; Qualified : ErrorFunc ;)  //tkMRecord
-{$ENDIF}
+{$ENDIF WST_TKMRECORD}
     );
 
     WriterInfoMap : array[TTypeKind] of TWriterInfo = (
@@ -1325,7 +1325,7 @@ var
 {$ENDIF WST_TKPROCEDURE}
 {$IFDEF WST_TKMRECORD}
      ,( Simple : ErrorProc; Qualified : ErrorProc ;)  //tkMRecord
-{$ENDIF}
+{$ENDIF WST_TKMRECORD}
     );
 {$ENDIF WST_DELPHI}
 

@@ -5224,7 +5224,7 @@ begin
         p := propList^[i];
         sp := GetPropInfo(Source,p^.Name);
         if Assigned(sp) and Assigned(sp^.GetProc) and
-           Assigned(p^.SetProc)
+           ((p^.PropType^.Kind = tkClass) or Assigned(p^.SetProc))
         then begin
           case p^.PropType^.Kind of
             tkInt64{$IFDEF HAS_QWORD} ,tkQWord{$ENDIF} :
@@ -5241,19 +5241,21 @@ begin
               begin
                 srcObj := GetObjectProp(Source,p^.Name);
                 dstObj := GetObjectProp(Self,p^.Name);
-                if ( not Assigned(dstObj) ) and
-                   ( Assigned(srcObj) and srcObj.InheritsFrom(TAbstractComplexRemotable) )
-                then begin
-                  dstObj := TAbstractComplexRemotableClass(srcObj.ClassType).Create();
-                  SetObjectProp(Self,p,dstObj);
-                end;
-                if Assigned(dstObj) then begin
-                  if ( srcObj = nil ) then begin
-                    FreeAndNil(dstObj);
+                if (dstObj <> nil) then begin
+                  if ( not Assigned(dstObj) ) and
+                     ( Assigned(srcObj) and srcObj.InheritsFrom(TAbstractComplexRemotable) )
+                  then begin
+                    dstObj := TAbstractComplexRemotableClass(srcObj.ClassType).Create();
                     SetObjectProp(Self,p,dstObj);
-                  end else begin
-                    if dstObj.InheritsFrom(TPersistent) and srcObj.InheritsFrom(TPersistent) then
-                      TPersistent(dstObj).Assign(TPersistent(srcObj));
+                  end;
+                  if Assigned(dstObj) then begin
+                    if ( srcObj = nil ) then begin
+                      FreeAndNil(dstObj);
+                      SetObjectProp(Self,p,dstObj);
+                    end else begin
+                      if dstObj.InheritsFrom(TPersistent) and srcObj.InheritsFrom(TPersistent) then
+                        TPersistent(dstObj).Assign(TPersistent(srcObj));
+                    end;
                   end;
                 end;
               end;

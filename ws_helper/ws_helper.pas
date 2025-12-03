@@ -20,7 +20,7 @@ uses
   Classes,
   SysUtils,
   wst_resources_utils,
-  generatorbase, generatorj, generator,
+  generatorbase, generatorj, generator, generatorts,
   parserutils,
   source_utils,
   command_line_parser,
